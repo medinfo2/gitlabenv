@@ -1,0 +1,53 @@
+- hosts: all
+  sudo: true
+  user: vagrant
+  vars:
+    hostname: "odin"
+  tasks:
+    - name: upgrade system
+      apt: upgrade=dist update_cache=yes
+    - name: install basic packages
+      apt: name={{ item }} state=present force=yes
+      with_items:
+        - ssh
+        - emacs
+        - samba
+        - avahi-daemon
+        - curl
+        - openssh-server
+        - ca-certificates
+        - postfix
+    ### setup swap region since gitlab require larger memory
+    - name: check if swapfile is exists
+      stat: path=/swapfile
+      register: swapfile
+    - name: create swapfile
+      command: fallocate -l 4G /swapfile
+      when: not swapfile.stat.exists
+    - name: chmod swapfile
+      command: chmod 600 /swapfile
+      when: not swapfile.stat.exists
+    - name: register file as swapfile
+      command: mkswap /swapfile
+      when: not swapfile.stat.exists
+    - name: enabling swapfile
+      command: swapon /swapfile
+      when: not swapfile.stat.exists
+    ### set up gitlab
+    - name: get deb package
+      shell: curl -sS https://packages.gitlab.com/install/repositories/gitlab/gitlab-ce/script.deb.sh | sudo bash
+    - name: update apt-get repositories
+      apt: update_cache=yes
+    - name: install gitlab
+      apt: name=gitlab-ce state=present force=yes
+    - name: check if gitlab is configured
+      stat: path=/var/opt/gitlab
+      register: gitlab_config
+      ignore_errors: True
+    - name: configure and start gitlab
+      command: gitlab-ctl reconfigure
+      when: not gitlab_config.stat.exists
+    - name: set hostname
+      command: hostnamectl set-hostname odin
+    - name: avahi-daemon (DDNS service) restart
+      service: name=avahi-daemon state=restarted
