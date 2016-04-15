@@ -2,7 +2,7 @@
 # vi: set ft=ruby :
 
 # Dotenv.load
-ENV['VAGRANT_BRIDGE'] = "Wi-Fi"
+ENV['VAGRANT_BRIDGE'] = "Ether"
 
 Vagrant.configure(2) do |config|
   config.vm.box = "ubuntu14.04"
